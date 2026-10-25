@@ -1,0 +1,54 @@
+import org.testcontainers.containers.PostgreSQLContainer
+import org.jooq.codegen.GenerationTool
+import org.jooq.meta.jaxb.*
+
+ buildscript {
+    repositories { mavenCentral() }
+    dependencies {
+        classpath 'org.testcontainers:postgresql:1.21.4'
+        classpath 'org.postgresql:postgresql:42.7.14'
+        classpath 'org.flywaydb:flyway-core:13.10.3'
+        classpath 'org.flywaydb:flyway-database-postgresql:13.10.3'
+        classpath 'org.jooq:jooq-codegen:3.21.9'
+    }
+}
+
+def migrationDir = file('src/main/resources/db/migration')
+def jooqOut = layout.buildDirectory.dir('generated-sources/jooq')
+
+tasks.register('generateJooq') {
+    inputs.dir migrationDir
+    outputs.dir jooqOut
+
+    doLast {
+        def pg = new PostgreSQLContainer<>('postgres:18-bookworm')
+        pg.start()
+        try {
+            org.flywaydb.core.Flyway.configure()
+                    .dataSource(pg.jdbcUrl, pg.username, pg.password)
+                    .locations("filesystem:${migrationDir.absolutePath}")
+                    .schemas('service')
+                    .createSchemas(true)      // giả lập bước bootstrap schema của prod
+                    .load().migrate()
+
+            GenerationTool.generate(new Configuration()
+                    .withJdbc(new Jdbc()
+                            .withDriver('org.postgresql.Driver')
+                            .withUrl(pg.jdbcUrl)
+                            .withUser(pg.username)
+                            .withPassword(pg.password))
+                    .withGenerator(new Generator()
+                            .withDatabase(new Database()
+                                    .withName('org.jooq.meta.postgres.PostgresDatabase')
+                                    .withInputSchema('service'))
+                            .withTarget(new Target()
+                                    .withPackageName('com.hungvers.services.catalog.infra.jooq')
+                                    .withDirectory(jooqOut.get().asFile.absolutePath))))
+        } finally {
+            pg.stop()
+        }
+    }
+}
+
+sourceSets.main.java.srcDir jooqOut
+tasks.named('compileJava') { dependsOn 'generateJooq' }
