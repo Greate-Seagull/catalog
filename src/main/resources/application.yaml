@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: catalog
+
+common:
+  cursor:
+    secret: ${CURSOR_SECRET}
