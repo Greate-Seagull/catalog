@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    primary:
+      jdbc-url: jdbc:tc:postgresql:18-bookworm:///catalog
+      schema: service
+      username: postgres
+      password: root
+      connection-init-sql: SET TIME ZONE 'UTC'
+    replica:
+      jdbc-url: jdbc:tc:postgresql:18-bookworm:///catalog
+      schema: service
+      username: postgres
+      password: root
+      connection-init-sql: SET TIME ZONE 'UTC'
+  jpa:
+    properties:
+      hibernate:
+        default_schema: service
+#        jdbc.time_zone: UTC
+  test:
+    database:
+      replace: none
+  flyway:
+    locations: classpath:db/migration
+    schemas: service
+    create-schemas: true
+    default-schema: service
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+
+common:
+  cursor:
+    secret: m+mHzlw8HNZBkkH3MulUCyp0TbXGlp47/5GKX+pNCbA=
